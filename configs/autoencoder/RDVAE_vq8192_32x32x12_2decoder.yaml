@@ -1,0 +1,72 @@
+model:
+  base_learning_rate: 5.0e-6
+  target: dualss.models.autoencoder_mask_2decoder_Attention_PINNres.VQModel
+  params:
+    monitor: "val/rec_loss"
+    n_embed: 8192
+    embed_dim: 16 # 4 + 12
+
+    ddconfig:
+      double_z: false
+      z_channels: 16 # 4 + 12
+      resolution: 256
+      in_channels: 3
+      out_ch: 7 # rgb + uvfk
+      ch: 128
+      ch_mult: [ 1,2,4,4 ]  # num_down = len(ch_mult)-1
+      num_res_blocks: 2
+      attn_resolutions: []
+      attn_size: 3
+      dropout: 0.0
+    
+    lossconfig:
+      target: dualss.modules.losses.VQLPIPSWithDiscriminator2DecoderPINN
+      params:
+        disc_start: 0 
+        codebook_weight: 1.0
+        pixelloss_weight: 1.0
+        disc_weight: 0.5 
+        perceptual_weight: 1.0
+
+        n_classes: 8192 
+        pixel_loss: "l1"
+
+    scheduler_config: 
+      target: torch.optim.lr_scheduler.CosineAnnealingLR
+      params:
+        T_max: 50000 
+        eta_min: 1.0e-8 
+
+data:
+  target: main_train_generator.DataModuleFromConfig
+  params:
+    batch_size: 16
+    num_workers: 6
+    wrap: True
+    train:
+      target: dualss.data.tongue.TongueTrain
+      params:
+        dir_or_csv: dir
+        size: 64 # 256
+        interpolation: bilinear
+        all_in_memory: True
+    validation:
+      target: dualss.data.tongue.TongueValidation
+      params:
+        dir_or_csv: dir
+        size: 64 # 256
+        interpolation: bilinear
+        all_in_memory: True
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main_train_generator.ImageLogger
+      params:
+        batch_frequency: 2000
+        max_images: 8
+        increase_log_steps: True
+
+  trainer:
+    benchmark: True
+    accumulate_grad_batches: 6

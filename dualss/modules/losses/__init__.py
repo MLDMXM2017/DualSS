@@ -1,0 +1,2 @@
+from dualss.modules.losses.contperceptual import LPIPSWithDiscriminator
+from dualss.modules.losses.vqperceptual import VQLPIPSWithDiscriminator2DecoderPINN
